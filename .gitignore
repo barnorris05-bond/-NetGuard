@@ -1,0 +1,22 @@
+node_modules/
+client/dist/
+server/dist/
+*.tsbuildinfo
+
+# Runtime persistence (recreated from the sample topology on first run)
+server/data/netguard.json
+server/data/*.tmp
+
+# Local environment
+.env
+.env.local
+server/.env
+
+# Generated review artifacts
+screenshots/downloads/
+screenshots/small/
+
+# Logs / OS files
+*.log
+.DS_Store
+Thumbs.db
