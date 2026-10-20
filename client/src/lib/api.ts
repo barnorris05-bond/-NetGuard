@@ -4,6 +4,8 @@ import type {
   GraphSnapshot,
   HistoryResponse,
   PathResponse,
+  TraceAlgorithm,
+  TraceResult,
   VulnerabilityResult,
 } from './types';
 
@@ -68,6 +70,14 @@ export const api = {
     request<PathResponse>('/api/path', { method: 'POST', body: { source, destination } }),
   vulnerabilities: () => request<VulnerabilityResult>('/api/vulnerabilities'),
   components: () => request<ComponentsResult>('/api/components'),
+  trace: (algorithm: TraceAlgorithm, source?: string, destination?: string) => {
+    const params = new URLSearchParams({ algorithm });
+    if (algorithm === 'bfs') {
+      params.set('source', source ?? '');
+      params.set('destination', destination ?? '');
+    }
+    return request<TraceResult>(`/api/trace?${params.toString()}`);
+  },
   failDevice: (name: string) =>
     request<{ message: string; graph: GraphSnapshot }>(`/api/devices/${encodeURIComponent(name)}/fail`, {
       method: 'POST',

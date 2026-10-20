@@ -15,8 +15,9 @@ import {
   type ArticulationResult,
 } from './types';
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'netguard.json');
+const DEFAULT_DATA_FILE = process.env.NETGUARD_DATA_FILE
+  ? path.resolve(process.env.NETGUARD_DATA_FILE)
+  : path.join(__dirname, '..', 'data', 'netguard.json');
 const MAX_HISTORY = 500;
 
 interface PersistedState {
@@ -59,23 +60,28 @@ export interface DemoResult {
  * In-memory graph + JSON-file persistence.
  * A write is made after every mutation so the app survives restarts and works
  * entirely offline. The file is written atomically (tmp + rename).
+ *
+ * The storage path is injectable so tests can run against a temporary file
+ * instead of the development state in server/data/netguard.json.
  */
-class NetworkStore {
+export class NetworkStore {
   graph: NetworkGraph;
   history: HistoryEvent[] = [];
+  private readonly dataFile: string;
 
-  constructor() {
+  constructor(dataFile: string = DEFAULT_DATA_FILE) {
+    this.dataFile = dataFile;
     this.graph = NetworkGraph.sample();
     this.load();
   }
 
   private load(): void {
     try {
-      if (!fs.existsSync(DATA_FILE)) {
+      if (!fs.existsSync(this.dataFile)) {
         this.persist();
         return;
       }
-      const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')) as PersistedState;
+      const raw = JSON.parse(fs.readFileSync(this.dataFile, 'utf8')) as PersistedState;
       if (!raw?.graph?.devices || !Array.isArray(raw.graph.devices)) {
         throw new Error('Malformed persistence file');
       }
@@ -96,11 +102,12 @@ class NetworkStore {
 
   persist(): void {
     try {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+      const dir = path.dirname(this.dataFile);
+      fs.mkdirSync(dir, { recursive: true });
       const state: PersistedState = { graph: this.graph.toData(), history: this.history };
-      const tmp = `${DATA_FILE}.tmp`;
+      const tmp = `${this.dataFile}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(state, null, 2), 'utf8');
-      fs.renameSync(tmp, DATA_FILE);
+      fs.renameSync(tmp, this.dataFile);
     } catch (error) {
       console.error('[netguard] Failed to persist state.', error);
     }

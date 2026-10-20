@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Activity,
   Cable,
   ChevronDown,
   CircleDot,
@@ -70,6 +71,7 @@ export function FailureTab({ graph }: { graph: GraphSnapshot }) {
   const failLink = useNetworkStore((state) => state.failLink);
   const restoreLink = useNetworkStore((state) => state.restoreLink);
   const restoreAll = useNetworkStore((state) => state.restoreAll);
+  const rerunAnalysis = useNetworkStore((state) => state.rerunAnalysis);
   const addDevice = useNetworkStore((state) => state.addDevice);
   const addLink = useNetworkStore((state) => state.addLink);
 
@@ -125,6 +127,17 @@ export function FailureTab({ graph }: { graph: GraphSnapshot }) {
               </>
             }
           />
+
+          {totalFailures > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.05] px-3 py-2">
+              <p className="text-[10.5px] leading-relaxed text-amber-200/80">
+                Topology changed. Re-run components and Tarjan on the mutated adjacency list.
+              </p>
+              <Button size="sm" variant="warning" icon={Activity} onClick={() => void rerunAnalysis()}>
+                Re-run analysis
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="px-3 pb-3 sm:px-4">

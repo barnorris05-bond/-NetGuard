@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import {
   GitCompareArrows,
   History,
+  ListOrdered,
   Network,
   Route,
   ShieldAlert,
@@ -28,6 +29,7 @@ export function TabNav() {
 
   const tabs: TabDefinition[] = [
     { id: 'topology', label: 'Topology', icon: Network },
+    { id: 'trace', label: 'Step Trace', icon: ListOrdered },
     { id: 'path', label: 'Path Finder', icon: Route },
     { id: 'vulnerability', label: 'Vulnerability', icon: ShieldAlert, count: graph?.metrics.articulationPoints },
     { id: 'components', label: 'Components', icon: Layers, count: graph?.metrics.components },

@@ -23,7 +23,11 @@ import { cn, LiveDot } from './ui';
 export function AdjacencyPanel({ graph }: { graph: GraphSnapshot }) {
   const selected = useNetworkStore((state) => state.selected);
   const select = useNetworkStore((state) => state.select);
+  const open = useNetworkStore((state) => state.showAdjacency);
+  const toggle = useNetworkStore((state) => state.toggleAdjacency);
+  const diff = useNetworkStore((state) => state.adjacencyDiff);
   const totalActiveEdges = graph.metrics.activeLinks * 2;
+  const changedRows = diff ? Object.keys(diff.neighbors).length + Object.keys(diff.devices).length : 0;
 
   return (
     <section className="panel overflow-hidden">
@@ -34,96 +38,150 @@ export function AdjacencyPanel({ graph }: { graph: GraphSnapshot }) {
           </div>
           <div>
             <h2 className="font-display text-[13.5px] font-semibold text-slate-100">Adjacency List</h2>
-            <p className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-slate-500">vector&lt;vector&lt;int&gt;&gt;</p>
+            <p className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-slate-500">vector&lt;vector&lt;int&gt;&gt; · always on</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.05] px-2 py-1">
-          <LiveDot />
-          <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-emerald-300">live</span>
+        <div className="flex items-center gap-1.5">
+          {changedRows > 0 && (
+            <span className="rounded-full border border-amber-400/25 bg-amber-400/[0.08] px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-amber-300">
+              Δ{changedRows}
+            </span>
+          )}
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.05] px-2 py-1">
+            <LiveDot />
+            <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-emerald-300">live</span>
+          </div>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            aria-label={open ? 'Collapse adjacency list' : 'Expand adjacency list'}
+            className="grid size-6 place-items-center rounded-md border border-white/[0.08] bg-white/[0.02] text-slate-400 transition-colors hover:border-white/20 hover:text-slate-200"
+          >
+            <ChevronDown size={13} className={cn('transition-transform duration-200', open && 'rotate-180')} />
+          </button>
         </div>
       </header>
 
-      <div className="flex items-center justify-between border-b border-white/[0.04] px-4 py-2 font-mono text-[9px] uppercase tracking-[0.08em] text-slate-500">
-        <span>device → neighbours</span>
-        <span>
-          V={graph.metrics.devices} · 2E={totalActiveEdges}
-        </span>
-      </div>
+      {!open && (
+        <div className="flex items-center justify-between px-4 py-2 font-mono text-[9px] text-slate-500">
+          <span>{graph.metrics.devices} devices · {graph.metrics.activeLinks} active links</span>
+          <span>{graph.metrics.components} component{graph.metrics.components === 1 ? '' : 's'}</span>
+        </div>
+      )}
 
-      <div>
-        {graph.adjacency.map((entry) => {
-          const isSelected = selected?.kind === 'device' && selected.name === entry.name;
-          return (
-            <button
-              key={entry.name}
-              type="button"
-              onClick={() => select({ kind: 'device', name: entry.name })}
-              className={cn(
-                'block w-full border-b border-white/[0.035] px-3.5 py-1.5 text-left transition-colors last:border-b-0',
-                isSelected ? 'bg-cyan-400/[0.055]' : 'hover:bg-white/[0.025]',
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-6 shrink-0 font-mono text-[9px] text-slate-600">[{entry.index}]</span>
-                <span
-                  className={cn(
-                    'size-1.5 shrink-0 rounded-full',
-                    entry.active ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-rose-400',
-                  )}
-                />
-                <span
-                  className={cn(
-                    'truncate font-mono text-[10.5px]',
-                    entry.active ? 'text-slate-200' : 'text-rose-300/80 line-through decoration-rose-400/40',
-                  )}
-                >
-                  {entry.name}
-                </span>
-                <span className="ml-auto shrink-0 font-mono text-[8px] uppercase tracking-wide text-slate-600">
-                  {entry.active ? `${entry.activeNeighborCount} up` : 'down'}
-                </span>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="adjacency-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-white/[0.04] px-4 py-2 font-mono text-[9px] uppercase tracking-[0.08em] text-slate-500">
+              <span>device → neighbours</span>
+              <span>
+                V={graph.metrics.devices} · 2E={totalActiveEdges}
+              </span>
+            </div>
+
+            {diff && (
+              <div className="border-b border-amber-400/10 bg-amber-400/[0.03] px-4 py-1.5 font-mono text-[8.5px] text-amber-300/80">
+                just changed · red = removed, green = restored
               </div>
+            )}
 
-              <div className="mt-0.5 flex flex-wrap items-center gap-1 pl-8">
-                <span className="font-mono text-[9.5px] text-slate-600">→</span>
-                {entry.neighbors.length === 0 && (
-                  <span className="font-mono text-[9px] italic text-slate-600">EMPTY (isolated node)</span>
-                )}
-                {!entry.active && entry.neighbors.length > 0 && (
-                  <span className="font-mono text-[9px] italic text-rose-400/60">device inactive — traversals skip it</span>
-                )}
-                {entry.neighbors.map((neighbor) => (
-                  <span
-                    key={neighbor.name}
+            <div>
+              {graph.adjacency.map((entry) => {
+                const isSelected = selected?.kind === 'device' && selected.name === entry.name;
+                const rowChange = diff?.devices[entry.name];
+                return (
+                  <button
+                    key={entry.name}
+                    type="button"
+                    onClick={() => select({ kind: 'device', name: entry.name })}
                     className={cn(
-                      'inline-flex items-center gap-1 rounded border px-1.5 font-mono text-[8.5px] leading-[15px]',
-                      neighbor.active
-                        ? 'border-cyan-400/15 bg-cyan-400/[0.05] text-cyan-200/80'
-                        : neighbor.linkActive
-                          ? 'border-white/[0.06] bg-white/[0.02] text-slate-500'
-                          : 'border-rose-400/15 bg-rose-400/[0.04] text-rose-300/60 line-through',
+                      'block w-full border-b border-white/[0.035] px-3.5 py-1.5 text-left transition-colors last:border-b-0',
+                      isSelected ? 'bg-cyan-400/[0.055]' : 'hover:bg-white/[0.025]',
+                      rowChange === 'down' && 'adj-row-down',
+                      rowChange === 'restored' && 'adj-row-restored',
                     )}
-                    title={
-                      neighbor.active
-                        ? 'Active link'
-                        : !neighbor.linkActive
-                          ? 'Physical link is cut'
-                          : 'Neighbouring device is down'
-                    }
                   >
-                    {neighbor.name.split('_').join('_')}
-                  </span>
-                ))}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 shrink-0 font-mono text-[9px] text-slate-600">[{entry.index}]</span>
+                      <span
+                        className={cn(
+                          'size-1.5 shrink-0 rounded-full',
+                          entry.active ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-rose-400',
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          'truncate font-mono text-[10.5px]',
+                          entry.active ? 'text-slate-200' : 'text-rose-300/80 line-through decoration-rose-400/40',
+                        )}
+                      >
+                        {entry.name}
+                      </span>
+                      <span className="ml-auto shrink-0 font-mono text-[8px] uppercase tracking-wide text-slate-600">
+                        {entry.active ? `${entry.activeNeighborCount} up` : 'down'}
+                      </span>
+                    </div>
 
-      <footer className="flex items-center justify-between border-t border-white/[0.05] px-4 py-2.5 font-mono text-[8.5px] text-slate-600">
-        <span>adjList[i] = neighbours of device i</span>
-        <span className="text-cyan-400/50">O(V+E)</span>
-      </footer>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1 pl-8">
+                      <span className="font-mono text-[9.5px] text-slate-600">→</span>
+                      {entry.neighbors.length === 0 && (
+                        <span className="font-mono text-[9px] italic text-slate-600">EMPTY (isolated node)</span>
+                      )}
+                      {!entry.active && entry.neighbors.length > 0 && (
+                        <span className="font-mono text-[9px] italic text-rose-400/60">device inactive — traversals skip it</span>
+                      )}
+                      {entry.neighbors.map((neighbor) => {
+                        const change = diff?.neighbors[entry.name]?.find((item) => item.name === neighbor.name)?.change;
+                        return (
+                          <span
+                            key={neighbor.name}
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded border px-1.5 font-mono text-[8.5px] leading-[15px]',
+                              neighbor.active
+                                ? 'border-cyan-400/15 bg-cyan-400/[0.05] text-cyan-200/80'
+                                : neighbor.linkActive
+                                  ? 'border-white/[0.06] bg-white/[0.02] text-slate-500'
+                                  : 'border-rose-400/15 bg-rose-400/[0.04] text-rose-300/60 line-through',
+                              change === 'removed' && 'adj-chip-removed',
+                              change === 'added' && 'adj-chip-added',
+                            )}
+                            title={
+                              change === 'removed'
+                                ? 'Just changed: traffic can no longer cross this neighbour'
+                                : change === 'added'
+                                  ? 'Just restored: traffic can cross this neighbour again'
+                                  : neighbor.active
+                                    ? 'Active link'
+                                    : !neighbor.linkActive
+                                      ? 'Physical link is cut'
+                                      : 'Neighbouring device is down'
+                            }
+                          >
+                            {neighbor.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <footer className="flex items-center justify-between border-t border-white/[0.05] px-4 py-2.5 font-mono text-[8.5px] text-slate-600">
+              <span>adjList[i] = neighbours of device i</span>
+              <span className="text-cyan-400/50">O(V+E)</span>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

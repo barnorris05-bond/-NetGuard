@@ -1,5 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Loader2, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Info, Loader2, type LucideIcon } from 'lucide-react';
 
 export function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ');
@@ -163,12 +164,96 @@ export function Badge({
   );
 }
 
-export function ComplexityChip({ complexity, time }: { complexity: string; time?: number }) {
+const COMPLEXITY_EXPLANATION =
+  'Each vertex is visited once and every adjacency entry is scanned at most once (2E entries for an undirected graph). Initialising the O(V) arrays adds a linear term, so the total is O(V + E) time and O(V) auxiliary space.';
+
+export function ComplexityChip({
+  complexity,
+  time,
+  explain = COMPLEXITY_EXPLANATION,
+}: {
+  complexity: string;
+  time?: number;
+  /** Plain-English justification shown by the info button. */
+  explain?: string;
+}) {
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const open = position !== null;
+
+  /** Keep the fixed-position tooltip inside the viewport, near its button. */
+  const computePosition = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const width = 288;
+    return {
+      left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+      top: Math.min(rect.bottom + 6, window.innerHeight - 120),
+    };
+  };
+
+  /* The tooltip is portalled to <body> so panel overflow-hidden cannot clip it. */
+  useEffect(() => {
+    if (!position) return;
+    const follow = () => {
+      const next = computePosition();
+      if (next) setPosition(next);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPosition(null);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (buttonRef.current?.contains(event.target as Node)) return;
+      setPosition(null);
+    };
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('scroll', follow, true);
+      window.removeEventListener('resize', follow);
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [position]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = () => {
+    if (position) {
+      setPosition(null);
+      return;
+    }
+    const next = computePosition();
+    if (next) setPosition(next);
+  };
+
   return (
-    <span className="inline-flex items-center gap-2 rounded-lg border border-violet-400/20 bg-violet-400/[0.07] px-2.5 py-1 font-mono text-[10px] text-violet-200">
+    <span className="relative inline-flex items-center gap-2 rounded-lg border border-violet-400/20 bg-violet-400/[0.07] px-2.5 py-1 font-mono text-[10px] text-violet-200">
       <span className="text-violet-400">TIME</span>
       {complexity}
       {time !== undefined && <span className="text-slate-500">{time.toFixed(2)} ms</span>}
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={toggle}
+        aria-label={`Why is this ${complexity}?`}
+        aria-expanded={open}
+        title={explain}
+        className="grid size-4 place-items-center rounded-full text-violet-300/70 transition-colors hover:bg-violet-400/15 hover:text-violet-200 focus-visible:outline-cyan-400"
+      >
+        <Info size={11} strokeWidth={2.2} />
+      </button>
+      {position &&
+        createPortal(
+          <span
+            role="tooltip"
+            style={{ left: position.left, top: position.top, width: 288 }}
+            className="fixed z-[100] rounded-lg border border-violet-400/25 bg-[#0b0a1a] p-2.5 font-sans text-[10px] font-normal normal-case leading-relaxed tracking-normal text-slate-300 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.9)]"
+          >
+            {explain}
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }

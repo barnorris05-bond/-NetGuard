@@ -223,6 +223,121 @@ button {
   animation: criticalPulse 2.5s ease-in-out infinite;
 }
 
+@keyframes tracePulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    stroke-width: 1.4;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 2.8;
+  }
+}
+
+.trace-pulse {
+  animation: tracePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes traceDash {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.trace-edge {
+  animation: traceDash 0.9s linear infinite;
+}
+
+/* Adjacency-list change highlights (cut/restored links and failed devices). */
+@keyframes adjRemoved {
+  0% {
+    background-color: rgba(244, 63, 94, 0.34);
+    border-color: rgba(251, 113, 133, 0.9);
+    color: #fecdd3;
+  }
+  100% {
+    background-color: rgba(244, 63, 94, 0.12);
+    border-color: rgba(251, 113, 133, 0.3);
+    color: #fda4af;
+  }
+}
+
+.adj-chip-removed {
+  animation: adjRemoved 2.4s ease-out both;
+}
+
+@keyframes adjAdded {
+  0% {
+    background-color: rgba(52, 211, 153, 0.34);
+    border-color: rgba(52, 211, 153, 0.9);
+    color: #d1fae5;
+  }
+  100% {
+    background-color: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: #6ee7b7;
+  }
+}
+
+.adj-chip-added {
+  animation: adjAdded 2.4s ease-out both;
+}
+
+@keyframes adjRowDown {
+  0% {
+    background-color: rgba(244, 63, 94, 0.24);
+  }
+  100% {
+    background-color: rgba(244, 63, 94, 0.06);
+  }
+}
+
+.adj-row-down {
+  animation: adjRowDown 2.4s ease-out both;
+}
+
+@keyframes adjRowRestored {
+  0% {
+    background-color: rgba(52, 211, 153, 0.22);
+  }
+  100% {
+    background-color: rgba(52, 211, 153, 0.04);
+  }
+}
+
+.adj-row-restored {
+  animation: adjRowRestored 2.4s ease-out both;
+}
+
+/* Step slider for the algorithm trace. */
+.trace-range {
+  height: 4px;
+  cursor: pointer;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.55), rgba(167, 139, 250, 0.45));
+  outline: none;
+}
+
+.trace-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #22d3ee;
+  border: 2px solid #04111c;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.65);
+}
+
+.trace-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #22d3ee;
+  border: 2px solid #04111c;
+}
+
 @keyframes haloSpin {
   to {
     transform: rotate(360deg);

@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   WifiOff,
 } from 'lucide-react';
-import type { GraphSnapshot, Selection } from '../lib/types';
+import type { GraphSnapshot, Selection, TraceNode } from '../lib/types';
 import { buildLayout, deviceMeta, linkKey, type DeviceKind, type Point } from '../lib/layout';
 import { cn } from './ui';
 
@@ -43,6 +43,13 @@ export interface CanvasHighlight {
   dimUnrelated?: boolean;
 }
 
+/** Live step overlays for the Algorithm Trace tab. */
+export interface TraceOverlay {
+  nodes: Map<string, TraceNode>;
+  focusEdge?: { u: string; v: string } | null;
+  showDiscLow?: boolean;
+}
+
 export interface PacketConfig {
   path: string[];
   playing: boolean;
@@ -60,6 +67,9 @@ interface NetworkCanvasProps {
   onSelectLink?: (u: string, v: string) => void;
   highlight?: CanvasHighlight;
   packet?: PacketConfig;
+  /** Static packet marker used when the trace steps drive the animation. */
+  packetAt?: string;
+  trace?: TraceOverlay;
   brokenSource?: string;
   compact?: boolean;
   interactive?: boolean;
@@ -74,6 +84,8 @@ export function NetworkCanvas({
   onSelectLink,
   highlight,
   packet,
+  packetAt,
+  trace,
   brokenSource,
   compact = false,
   interactive = true,
@@ -163,6 +175,11 @@ export function NetworkCanvas({
   const componentMap = highlight?.componentMap;
   const componentColors = highlight?.componentColors ?? ['#22d3ee'];
 
+  const focusPoint = trace?.focusEdge
+    ? { a: layout.get(trace.focusEdge.u), b: layout.get(trace.focusEdge.v) }
+    : null;
+  const packetMarker = packetAt ? layout.get(packetAt) : undefined;
+
   const focusNodes = useMemo(() => {
     const set = new Set<string>();
     if (path.length > 0) path.forEach((name) => set.add(name));
@@ -239,6 +256,33 @@ export function NetworkCanvas({
           })}
         </g>
 
+        {/* Focused edge for the current algorithm-trace step (drawn above links). */}
+        {focusPoint?.a && focusPoint.b && (
+          <g pointerEvents="none">
+            <line
+              x1={focusPoint.a.x}
+              y1={focusPoint.a.y}
+              x2={focusPoint.b.x}
+              y2={focusPoint.b.y}
+              stroke="#fbbf24"
+              strokeWidth={5}
+              opacity={0.22}
+              strokeLinecap="round"
+            />
+            <line
+              x1={focusPoint.a.x}
+              y1={focusPoint.a.y}
+              x2={focusPoint.b.x}
+              y2={focusPoint.b.y}
+              stroke="#fde68a"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              strokeLinecap="round"
+              className="trace-edge"
+            />
+          </g>
+        )}
+
         {/* Devices */}
         <g>
           {graph.devices.map((device) => {
@@ -266,6 +310,9 @@ export function NetworkCanvas({
                 pathRole={pathRole}
                 dimmed={dimUnrelated && !focusNodes.has(device.name)}
                 componentColor={componentColor}
+                degree={device.activeDegree}
+                traceNode={trace?.nodes.get(device.name)}
+                showDiscLow={Boolean(trace?.showDiscLow)}
                 interactive={interactive}
                 onSelect={onSelectDevice}
               />
@@ -295,6 +342,15 @@ export function NetworkCanvas({
               strokeWidth={1.4}
               className="signal-ripple-delayed"
             />
+          </g>
+        )}
+
+        {/* Static packet marker, synchronised with BFS trace steps. */}
+        {packetMarker && (
+          <g transform={`translate(${packetMarker.x + 50},${packetMarker.y - 44})`} pointerEvents="none">
+            <circle r={20} fill="#22d3ee" opacity={0.14} />
+            <circle r={8} fill="#22d3ee" opacity={0.92} filter={`url(#${uid}-packet)`} />
+            <circle r={3} fill="#ecfeff" stroke="#22d3ee" strokeWidth={1.6} className="packet-core" />
           </g>
         )}
 
@@ -557,6 +613,9 @@ function GraphDevice({
   pathRole,
   dimmed,
   componentColor,
+  degree,
+  traceNode,
+  showDiscLow,
   interactive,
   onSelect,
 }: {
@@ -569,22 +628,39 @@ function GraphDevice({
   pathRole?: 'source' | 'destination';
   dimmed: boolean;
   componentColor?: string;
+  degree: number;
+  /** Current step state from an algorithm trace, if the Trace tab is active. */
+  traceNode?: TraceNode;
+  showDiscLow: boolean;
   interactive: boolean;
   onSelect?: (name: string) => void;
 }) {
   const meta = deviceMeta(name);
   const Icon = DEVICE_ICONS[meta.kind];
-  const stroke = !active ? '#f43f5e' : selected ? '#22d3ee' : onPath ? '#67e8f9' : critical ? '#fb7185' : `${meta.color}66`;
+  const traceState = traceNode?.state;
+  const stroke = !active
+    ? '#f43f5e'
+    : traceState === 'current'
+      ? '#22d3ee'
+      : traceState === 'frontier'
+        ? '#fbbf24'
+        : selected
+          ? '#22d3ee'
+          : onPath
+            ? '#67e8f9'
+            : critical
+              ? '#fb7185'
+              : `${meta.color}66`;
 
   return (
     <g
       transform={`translate(${point.x},${point.y})`}
-      className="device-node cursor-pointer"
+      className="device-node group cursor-pointer"
       opacity={dimmed ? 0.4 : 1}
       onClick={() => interactive && onSelect?.(name)}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : -1}
-      aria-label={`${name}, ${NODE_ALT[meta.kind]}, ${active ? 'up' : 'down'}${critical ? ', critical device' : ''}`}
+      aria-label={`${name}, ${NODE_ALT[meta.kind]}, ${active ? 'up' : 'down'}, degree ${degree}${critical ? ', critical device' : ''}`}
       onKeyDown={(event) => {
         if (interactive && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
@@ -593,9 +669,50 @@ function GraphDevice({
       }}
     >
       <title>
-        {name} — {meta.label}, {active ? 'UP' : 'DOWN'}
+        {name} — {meta.label}, {active ? 'UP' : 'DOWN'}, degree {degree}
         {critical ? ' · critical device (articulation point)' : ''}
+        {traceNode?.disc !== undefined ? ` · disc=${traceNode.disc} low=${traceNode.low}` : ''}
       </title>
+
+      {/* Hover degree chip — the current number of active neighbours. */}
+      <g transform="translate(44,-52)" pointerEvents="none" className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
+        <rect x={-22} y={-8} width={44} height={15} rx={7.5} fill="#04111c" stroke="#22d3ee55" strokeWidth={1} />
+        <text textAnchor="middle" y={3} fill="#67e8f9" fontSize={7} fontFamily="'JetBrains Mono', monospace">
+          deg {degree}
+        </text>
+      </g>
+
+      {/* Trace state ring: cyan = current, amber = queued/on stack, emerald = finished. */}
+      {traceState === 'current' && (
+        <rect
+          x={-71}
+          y={-49}
+          width={142}
+          height={98}
+          rx={19}
+          fill="none"
+          stroke="#22d3ee"
+          strokeWidth={1.8}
+          className="trace-pulse"
+        />
+      )}
+      {traceState === 'frontier' && (
+        <rect
+          x={-71}
+          y={-49}
+          width={142}
+          height={98}
+          rx={19}
+          fill="none"
+          stroke="#fbbf24"
+          strokeWidth={1.3}
+          strokeDasharray="4 4"
+          opacity={0.85}
+        />
+      )}
+      {traceState === 'visited' && (
+        <rect x={-69} y={-47} width={138} height={94} rx={17} fill="#34d399" opacity={0.05} />
+      )}
 
       {critical && (
         <rect
@@ -726,6 +843,22 @@ function GraphDevice({
 
       {componentColor && active && (
         <rect x={-28} y={34} width={56} height={2.6} rx={1.3} fill={componentColor} />
+      )}
+
+      {/* Tarjan disc[] / low[] values, shown under the node while tracing. */}
+      {showDiscLow && traceNode?.disc !== undefined && (
+        <g transform="translate(0,43)" pointerEvents="none">
+          <rect x={-40} y={-8} width={80} height={15} rx={4} fill="#0b1220" stroke="#a78bfa55" strokeWidth={0.8} />
+          <text
+            textAnchor="middle"
+            y={3}
+            fill="#c4b5fd"
+            fontSize={7}
+            fontFamily="'JetBrains Mono', monospace"
+          >
+            d={traceNode.disc} · l={traceNode.low}
+          </text>
+        </g>
       )}
 
       {!active && (

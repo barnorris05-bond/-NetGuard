@@ -83,6 +83,73 @@ export interface ComponentsResult {
   executionMs: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* Step-by-step algorithm traces                                      */
+/* ------------------------------------------------------------------ */
+
+export type TraceAlgorithm = 'bfs' | 'components' | 'tarjan';
+
+export type TraceNodeState = 'unvisited' | 'frontier' | 'current' | 'visited' | 'down';
+
+export interface TraceEdge {
+  u: string;
+  v: string;
+  id: string;
+}
+
+export interface TraceNode {
+  name: string;
+  state: TraceNodeState;
+  disc?: number;
+  low?: number;
+  parent?: string | null;
+  component?: number;
+}
+
+export interface TraceStep {
+  index: number;
+  action: string;
+  title: string;
+  explanation: string;
+  current: string | null;
+  queue: string[];
+  stack: string[];
+  visited: string[];
+  nodes: TraceNode[];
+  disc: Record<string, number>;
+  low: Record<string, number>;
+  parent: Record<string, string | null>;
+  components: Record<string, number>;
+  activeComponent: number | null;
+  path: string[] | null;
+  focusEdge: TraceEdge | null;
+  detectedBridge: TraceEdge | null;
+  detectedArticulation: string | null;
+  articulationPoints: string[];
+  bridges: TraceEdge[];
+}
+
+export interface TraceSummary {
+  found?: boolean;
+  path?: string[];
+  hops?: number;
+  visitedOrder?: string[];
+  components?: Array<{ id: number; nodes: string[] }>;
+  count?: number;
+  articulationPoints?: string[];
+  bridges?: TraceEdge[];
+  message?: string;
+}
+
+export interface TraceResult {
+  algorithm: TraceAlgorithm;
+  complexity: string;
+  source?: string;
+  destination?: string;
+  steps: TraceStep[];
+  summary: TraceSummary;
+}
+
 export type HistoryType =
   | 'fail-device'
   | 'restore-device'
@@ -152,6 +219,7 @@ export interface DemoResult {
 
 export type TabId =
   | 'topology'
+  | 'trace'
   | 'path'
   | 'vulnerability'
   | 'components'

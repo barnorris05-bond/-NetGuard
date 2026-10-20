@@ -89,6 +89,7 @@ export function PathFinderTab({ graph }: { graph: GraphSnapshot }) {
   const [destination, setDestination] = useState('Web_Server');
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [animatePacket, setAnimatePacket] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [hopInfo, setHopInfo] = useState<{ hop: number; node: string }>({ hop: 0, node: 'Admin_PC' });
 
@@ -220,7 +221,7 @@ export function PathFinderTab({ graph }: { graph: GraphSnapshot }) {
             onSelectLink={(u, v) => select({ kind: 'link', u, v })}
             highlight={{ path: pathResult?.found ? pathResult.path : [], dimUnrelated: Boolean(pathResult?.found) }}
             packet={
-              pathResult?.found
+              pathResult?.found && animatePacket
                 ? {
                     path: pathResult.path,
                     playing,
@@ -364,7 +365,7 @@ export function PathFinderTab({ graph }: { graph: GraphSnapshot }) {
                         <div className="flex items-center gap-2">
                           <span className={cn('size-1.5 rounded-full', playing ? 'animate-pulse bg-cyan-300' : arrived ? 'bg-emerald-400' : 'bg-slate-500')} />
                           <p className="font-mono text-[10px] text-slate-400">
-                            {arrived ? 'Packet delivered' : playing ? 'Packet in transit' : 'Animation paused'}
+                            {!animatePacket ? 'Final path only' : arrived ? 'Packet delivered' : playing ? 'Packet in transit' : 'Animation paused'}
                             <span className="text-slate-600"> · </span>
                             hop {Math.min(hopInfo.hop, pathResult.hops)}/{pathResult.hops}
                             {hopInfo.node && (
@@ -409,21 +410,42 @@ export function PathFinderTab({ graph }: { graph: GraphSnapshot }) {
                         >
                           Restart
                         </Button>
-                        <div className="ml-1 flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.02] p-0.5">
-                          {SPEEDS.map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              onClick={() => setSpeed(value)}
-                              className={cn(
-                                'rounded-md px-1.5 py-1 font-mono text-[9px] transition-colors',
-                                speed === value ? 'bg-cyan-400/15 text-cyan-200' : 'text-slate-500 hover:text-slate-300',
-                              )}
-                            >
-                              {value}x
-                            </button>
-                          ))}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAnimatePacket((value) => {
+                              if (value) setPlaying(false);
+                              return !value;
+                            });
+                          }}
+                          aria-pressed={animatePacket}
+                          className={cn(
+                            'rounded-lg border px-2 py-1 font-mono text-[9px] transition-colors',
+                            animatePacket
+                              ? 'border-cyan-400/30 bg-cyan-400/[0.08] text-cyan-200'
+                              : 'border-white/10 bg-white/[0.02] text-slate-500 hover:text-slate-300',
+                          )}
+                          title="Toggle between the animated packet and the final path only"
+                        >
+                          {animatePacket ? 'Animate packet' : 'Final path only'}
+                        </button>
+                        {animatePacket && (
+                          <div className="ml-1 flex items-center gap-1 rounded-lg border border-white/[0.07] bg-white/[0.02] p-0.5">
+                            {SPEEDS.map((value) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => setSpeed(value)}
+                                className={cn(
+                                  'rounded-md px-1.5 py-1 font-mono text-[9px] transition-colors',
+                                  speed === value ? 'bg-cyan-400/15 text-cyan-200' : 'text-slate-500 hover:text-slate-300',
+                                )}
+                              >
+                                {value}x
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 

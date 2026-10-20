@@ -6,8 +6,9 @@ A full-stack, interactive teaching tool that turns the original **C++ `NetworkGr
 
 ## Highlights
 
-- **Interactive SVG topology** with router/switch/server/PC glyphs, status LEDs, animated link traffic, and a live adjacency-list panel.
-- **Animated BFS packet** that moves hop by hop, with play/pause/restart and 0.5×–4× speed controls, plus a dedicated "Signal lost" state when no path exists.
+- **Interactive SVG topology** with router/switch/server/PC glyphs, status LEDs, animated link traffic, and an always-open adjacency-list panel that flashes every changed neighbour red or green after a failure or restore.
+- **Step-by-step algorithm trace** for BFS, connected components, and Tarjan: queue/stack snapshots, `parent[]`, `disc[]`/`low[]`, per-step plain-English explanations, and Prev/Next/Play/Reset controls (Space, ←/→, P, R shortcuts).
+- **Animated BFS packet** that moves hop by hop, with play/pause/restart and 0.5×–4× speed controls, a "final path only" toggle, plus a dedicated "Signal lost" state when no path exists.
 - **Tarjan vulnerability analysis** that highlights articulation points and bridges with critical-element halos.
 - **Connected-component coloring** after failures, with one card per surviving subnetwork.
 - **Failure simulator** for every device and link, plus optional topology extension (add vertices and edges).
@@ -29,6 +30,15 @@ A full-stack, interactive teaching tool that turns the original **C++ `NetworkGr
 | Failure simulation | Persistent history |
 | --- | --- |
 | ![Failure simulation](screenshots/05-failure.png) | ![History](screenshots/08-history.png) |
+
+## Academic documentation
+
+The viva package is kept alongside the code, in formal academic English:
+
+- **[VIVA_SCRIPT.md](VIVA_SCRIPT.md)** — a ready-to-run 8–12 minute demonstration script (topology → BFS → Tarjan → failure → recovery), seven model viva answers, and a fallback plan if the live UI is unavailable.
+- **[EXAMINER_README.md](EXAMINER_README.md)** — problem statement, graph-theory mapping table, adjacency-list justification with a matrix comparison, algorithm complexity table, sample topology analysis, and expected learning outcomes.
+
+Reference values quoted in both documents (6-hop path, 6 articulation points, 7 bridges, partition sizes 5 and 4) are asserted by the test suite.
 
 ## Quick start
 
@@ -159,6 +169,7 @@ All mutating endpoints persist immediately. The JSON-file store survives restart
 | `POST` | `/api/path` | BFS `{ source, destination }` |
 | `GET` | `/api/components` | connected components |
 | `GET` | `/api/vulnerabilities` | articulation points + bridges |
+| `GET` | `/api/trace` | step-by-step trace: `algorithm=bfs\|components\|tarjan` (+ `source`, `destination` for BFS) |
 | `GET` | `/api/demo/before-after` | cloned before/after experiment |
 | `GET` | `/api/history` | persisted event log (optionally `scope=session`) |
 | `DELETE` | `/api/history` | clear the event log |
@@ -171,8 +182,8 @@ The browser creates a session UUID in `localStorage` and sends it as `x-session-
 netguard/
 ├── client/
 │   ├── src/
-│   │   ├── components/        # canvas, sidebar, header, tabs, UI kit, error boundary
-│   │   ├── tabs/              # Topology, Path, Vulnerability, Components, Failure, Demo, History
+│   │   ├── components/        # canvas, sidebar, header, status bar, UI kit, error boundary
+│   │   ├── tabs/              # Topology, Step Trace, Path, Vulnerability, Components, Failure, Demo, History
 │   │   ├── store/             # Zustand API + UI state
 │   │   ├── lib/               # types, API client, layout/device metadata
 │   │   ├── App.tsx
@@ -182,25 +193,48 @@ netguard/
 ├── server/
 │   ├── src/
 │   │   ├── graph.ts           # adjacency list + BFS + components + Tarjan
-│   │   ├── graph.test.ts      # algorithm sanity suite
+│   │   ├── graph.test.ts      # 32 graph-engine scenarios (node:test)
+│   │   ├── trace.test.ts      # 14 algorithm-trace scenarios (node:test)
+│   │   ├── api.test.ts        # 12 HTTP integration scenarios (node:test)
+│   │   ├── trace.ts           # read-only BFS / components / Tarjan step traces
 │   │   ├── store.ts           # JSON persistence, history, demo clone
 │   │   ├── types.ts           # shared backend types + sample topology
-│   │   └── index.ts           # Express REST API
+│   │   ├── app.ts             # Express app factory (all routes)
+│   │   └── index.ts           # configuration + listen
 │   ├── data/netguard.json     # generated at runtime
 │   └── .env.example
 ├── Mini_project.cpp           # original C++ reference
+├── VIVA_SCRIPT.md             # 10-minute viva demonstration script
+├── EXAMINER_README.md         # examiner documentation and complexity tables
 └── README.md
 ```
 
 ## Testing
 
 ```bash
-npm test                  # BFS, Tarjan, components, fail/restore, redundant-link cases
+npm test                  # 58 tests: 32 engine + 14 trace + 12 HTTP integration scenarios
 npm run typecheck         # strict TypeScript for client + server
 npm run build             # production API + client build
 ```
 
-The engine tests assert the exact expected path (`Admin_PC → Switch_C → Dist_Router_2 → Core_Router → Dist_Router_1 → Switch_A → Web_Server`), six articulation points, seven bridges, failure isolation, link-cut behavior, and that the demo clone does not mutate the live graph.
+The suite uses Node's built-in `node:test` runner through `tsx`, grouped into five engine suites plus one HTTP suite:
+
+| Area | Coverage |
+| --- | --- |
+| Adjacency list | sequential indices, duplicate/self-loop rejection, bidirectional entries, serialization round-trip, active versus down neighbours |
+| Isolated / disconnected | single and multiple isolated devices, edgeless graphs, one-device survival |
+| Topology shapes | chain, ring, star, triangle plus redundant link, complete graph `K5` |
+| Failure & restoration | leaf failure, articulation-point failure, bridge cut, simultaneous failures, duplicate failure/restore, unknown names |
+| Algorithms | exact 6-hop BFS route, zero-hop path, DOWN endpoints, no-path messages, rerouting, Tarjan on sample/chain/complete graph, component counts, traversal invariants, clone isolation |
+| Algorithm traces | BFS path/queue/parent consistency, no-path and DOWN-endpoint traces, component ids and membership, Tarjan `disc`/`low` invariants, cumulative bridge/AP detection, complete/chain/isolated graphs, read-only guarantee |
+| HTTP API | health, serialization, 400/404/409 validation, unreachable-path query, add device/link, restore-all, history, clone-safe demo, trace validation |
+
+The engine tests assert the exact expected path (`Admin_PC → Switch_C → Dist_Router_2 → Core_Router → Dist_Router_1 → Switch_A → Web_Server`), six articulation points, seven bridges, failure isolation, link-cut behavior, and that the demo clone does not mutate the live graph. The HTTP suite builds the Express app around a store backed by a temporary file, so running the tests never modifies `server/data/netguard.json`. To typecheck the test sources (excluded from the production build), run:
+
+```bash
+npx tsc --noEmit --strict --esModuleInterop --skipLibCheck --module commonjs \
+  --moduleResolution node --target ES2022 --types node server/src/graph.test.ts server/src/trace.test.ts server/src/api.test.ts
+```
 
 ## Viva / presentation cheat sheet
 
@@ -213,6 +247,7 @@ The engine tests assert the exact expected path (`Admin_PC → Switch_C → Dist
 | Connected component | Isolated subnetwork | color-coded groups after failures |
 | BFS | Fewest-hop route | Path Finder + moving packet |
 | Tarjan DFS | Vulnerability audit | `disc[]` / `low[]` conditions |
+| Algorithm trace | Queue / stack / timestamps | Step Trace tab, `/api/trace` |
 
 A good demo flow:
 

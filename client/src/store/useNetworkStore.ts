@@ -10,6 +10,8 @@ import type {
   Selection,
   TabId,
   Toast,
+  TraceAlgorithm,
+  TraceResult,
   VulnerabilityResult,
 } from '../lib/types';
 
@@ -39,6 +41,39 @@ interface PathQuery {
   destination: string;
 }
 
+/** Transient highlight of what a mutation changed in the adjacency list. */
+export interface AdjacencyDiff {
+  at: number;
+  devices: Record<string, 'down' | 'restored'>;
+  neighbors: Record<string, Array<{ name: string; change: 'removed' | 'added' }>>;
+}
+
+function computeAdjacencyDiff(previous: GraphSnapshot | null, next: GraphSnapshot): AdjacencyDiff | null {
+  if (!previous) return null;
+  const devices: AdjacencyDiff['devices'] = {};
+  const neighbors: AdjacencyDiff['neighbors'] = {};
+  const previousRows = new Map(previous.adjacency.map((entry) => [entry.name, entry]));
+
+  for (const entry of next.adjacency) {
+    const before = previousRows.get(entry.name);
+    if (!before) continue;
+    if (before.active !== entry.active) devices[entry.name] = entry.active ? 'restored' : 'down';
+
+    const beforeNeighbors = new Map(before.neighbors.map((neighbor) => [neighbor.name, neighbor]));
+    for (const neighbor of entry.neighbors) {
+      const old = beforeNeighbors.get(neighbor.name);
+      if (!old || old.active === neighbor.active) continue;
+      (neighbors[entry.name] ??= []).push({
+        name: neighbor.name,
+        change: neighbor.active ? 'added' : 'removed',
+      });
+    }
+  }
+
+  if (Object.keys(devices).length === 0 && Object.keys(neighbors).length === 0) return null;
+  return { at: Date.now(), devices, neighbors };
+}
+
 interface NetworkState {
   graph: GraphSnapshot | null;
   graphLoading: boolean;
@@ -48,8 +83,13 @@ interface NetworkState {
   tab: TabId;
   selected: Selection;
   showEducation: boolean;
+  showAdjacency: boolean;
+  adjacencyDiff: AdjacencyDiff | null;
   pending: string[];
   toasts: Toast[];
+
+  trace: TraceResult | null;
+  traceLoading: boolean;
 
   pathQuery: PathQuery | null;
   pathResult: PathResult | null;
@@ -72,6 +112,7 @@ interface NetworkState {
   setTab: (tab: TabId) => void;
   select: (selection: Selection) => void;
   setShowEducation: (show: boolean) => void;
+  toggleAdjacency: () => void;
   dismissToast: (id: string) => void;
   pushToast: (message: string, kind?: Toast['kind']) => void;
 
@@ -90,6 +131,9 @@ interface NetworkState {
   clearPath: () => void;
   loadVulnerabilities: () => Promise<void>;
   loadComponents: () => Promise<void>;
+  rerunAnalysis: () => Promise<void>;
+  runTrace: (algorithm: TraceAlgorithm, source?: string, destination?: string) => Promise<TraceResult | null>;
+  clearTrace: () => void;
   runDemo: () => Promise<DemoResult | null>;
   loadHistory: (scope?: 'all' | 'session') => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -106,8 +150,17 @@ export const useNetworkStore = create<NetworkState>((set, get) => {
     setTimeout(() => get().dismissToast(id), kind === 'error' ? 5200 : 3400);
   };
 
-  /** Any graph mutation invalidates the cached path / analyses and graph panels. */
+  let diffTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Any graph mutation invalidates cached analyses and records exactly which
+   * adjacency rows/neighbours changed, so the always-visible list can flash
+   * red (removed) or green (restored) for a few seconds.
+   */
   const applyGraph = (graph: GraphSnapshot) => {
+    const diff = computeAdjacencyDiff(get().graph, graph);
+    if (diffTimer) clearTimeout(diffTimer);
+    diffTimer = diff ? setTimeout(() => set({ adjacencyDiff: null }), 5000) : null;
     set((state) => ({
       graph,
       error: null,
@@ -115,6 +168,8 @@ export const useNetworkStore = create<NetworkState>((set, get) => {
       pathQuery: state.pathLoading ? state.pathQuery : null,
       vulnerabilities: null,
       components: null,
+      trace: null,
+      adjacencyDiff: diff,
     }));
   };
 
@@ -140,8 +195,13 @@ export const useNetworkStore = create<NetworkState>((set, get) => {
     tab: 'topology',
     selected: null,
     showEducation: true,
+    showAdjacency: true,
+    adjacencyDiff: null,
     pending: [],
     toasts: [],
+
+    trace: null,
+    traceLoading: false,
 
     pathQuery: null,
     pathResult: null,
@@ -164,6 +224,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => {
     setTab: (tab) => set({ tab }),
     select: (selected) => set({ selected }),
     setShowEducation: (showEducation) => set({ showEducation }),
+    toggleAdjacency: () => set((state) => ({ showAdjacency: !state.showAdjacency })),
     dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
     pushToast,
 
@@ -287,6 +348,27 @@ export const useNetworkStore = create<NetworkState>((set, get) => {
         pushToast(errorMessage(error), 'error');
       }
     },
+
+    /** One-click refresh offered after a failure: components + Tarjan together. */
+    rerunAnalysis: async () => {
+      await Promise.all([get().loadVulnerabilities(), get().loadComponents()]);
+      pushToast('Re-ran components and Tarjan on the current topology.', 'info');
+    },
+
+    runTrace: async (algorithm, source, destination) => {
+      set({ traceLoading: true });
+      try {
+        const trace = await api.trace(algorithm, source, destination);
+        set({ trace, traceLoading: false });
+        return trace;
+      } catch (error) {
+        set({ traceLoading: false });
+        pushToast(errorMessage(error), 'error');
+        return null;
+      }
+    },
+
+    clearTrace: () => set({ trace: null }),
 
     runDemo: async () => {
       set({ demoLoading: true });

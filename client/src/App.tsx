@@ -7,8 +7,10 @@ import { TabErrorBoundary } from './components/ErrorBoundary';
 import { TabNav } from './components/TabNav';
 import { AppSidebar } from './components/Sidebar';
 import { ToastViewport } from './components/Toasts';
+import { StatusBar } from './components/StatusBar';
 import { Button, cn, Panel, Skeleton } from './components/ui';
 import { TopologyTab } from './tabs/TopologyTab';
+import { TraceTab } from './tabs/TraceTab';
 import { PathFinderTab } from './tabs/PathFinderTab';
 import { VulnerabilityTab } from './tabs/VulnerabilityTab';
 import { ComponentsTab } from './tabs/ComponentsTab';
@@ -21,6 +23,8 @@ function TabContent({ tab, graph }: { tab: TabId; graph: GraphSnapshot }) {
   switch (tab) {
     case 'topology':
       return <TopologyTab graph={graph} />;
+    case 'trace':
+      return <TraceTab graph={graph} />;
     case 'path':
       return <PathFinderTab graph={graph} />;
     case 'vulnerability':
@@ -129,7 +133,7 @@ export default function App() {
     <div className="app-shell min-h-screen">
       <Header />
 
-      <main className="mx-auto w-full max-w-[1680px] px-4 pb-8 sm:px-5 lg:px-6">
+      <main className="mx-auto w-full max-w-[1680px] px-4 pb-24 sm:px-5 lg:px-6">
         <div className="mt-3">
           <TabNav />
         </div>
@@ -178,6 +182,7 @@ export default function App() {
         </footer>
       </main>
 
+      <StatusBar />
       <ToastViewport />
     </div>
   );
