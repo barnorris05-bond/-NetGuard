@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { CircleAlert, Network, RefreshCw } from 'lucide-react';
 import { useNetworkStore } from './store/useNetworkStore';
 import { Header } from './components/Header';
@@ -114,6 +114,7 @@ function ApiOffline({ error }: { error: string }) {
 }
 
 export default function App() {
+  const reducedMotion = useReducedMotion();
   const bootstrap = useNetworkStore((state) => state.bootstrap);
   const graph = useNetworkStore((state) => state.graph);
   const graphLoading = useNetworkStore((state) => state.graphLoading);
@@ -133,7 +134,7 @@ export default function App() {
     <div className="app-shell min-h-screen">
       <Header />
 
-      <main className="mx-auto w-full max-w-[1680px] px-4 pb-24 sm:px-5 lg:px-6">
+      <main className="mx-auto w-full max-w-[1680px] px-4 pb-32 sm:px-5 sm:pb-28 lg:px-6">
         <div className="mt-3">
           <TabNav />
         </div>
@@ -149,9 +150,9 @@ export default function App() {
                   so a throttled/background tab can still switch instantly. */}
               <motion.div
                 key={tab}
-                initial={{ opacity: 0.94, y: 8 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
                 className="min-w-0"
               >
                 <TabErrorBoundary label={`The ${tab} tab`}>

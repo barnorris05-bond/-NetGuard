@@ -47,8 +47,8 @@ export function SectionHeader({
         )}
         <div className="min-w-0">
           {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
-          <h2 className="font-display text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">{title}</h2>
-          {subtitle && <p className="mt-1 text-[12.5px] leading-relaxed text-slate-400">{subtitle}</p>}
+        <h2 className="font-display text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm leading-relaxed text-slate-400">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -65,7 +65,7 @@ type ButtonSize = 'sm' | 'md' | 'icon' | 'icon-sm';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    'border border-cyan-300/30 bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow-[0_10px_30px_-12px_rgba(34,211,238,0.8)]',
+    'border border-[var(--active)] bg-[var(--active)] text-white hover:brightness-110 shadow-sm',
   secondary:
     'border border-white/10 bg-white/[0.045] text-slate-200 hover:border-white/20 hover:bg-white/[0.08]',
   ghost: 'border border-transparent text-slate-400 hover:bg-white/[0.06] hover:text-slate-100',

@@ -8,7 +8,10 @@ import {
   RotateCcw,
   Server,
   Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { Badge, Button, cn, LiveDot } from './ui';
 
@@ -52,6 +55,10 @@ function MiniMetric({
 }
 
 export function Header() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+  );
+  const reducedMotion = useReducedMotion();
   const graph = useNetworkStore((state) => state.graph);
   const setTab = useNetworkStore((state) => state.setTab);
   const runDemo = useNetworkStore((state) => state.runDemo);
@@ -83,17 +90,29 @@ export function Header() {
     void resetTopology();
   };
 
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    document.documentElement.style.colorScheme = next;
+    try {
+      window.localStorage.setItem('netguard-theme', next);
+    } catch {
+      // Keep theme switching functional when browser storage is unavailable.
+    }
+  };
+
   return (
     <header className="mx-auto w-full max-w-[1680px] px-4 pb-1 pt-4 sm:px-5 lg:px-6">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
         <div className="flex items-center gap-3">
-          <div className="relative grid size-11 shrink-0 place-items-center rounded-[14px] border border-cyan-400/25 bg-gradient-to-br from-cyan-400/[0.18] via-cyan-400/[0.05] to-violet-500/[0.12] text-cyan-300 shadow-[0_0_30px_-8px_rgba(34,211,238,0.55)]">
+          <div className="relative grid size-11 shrink-0 place-items-center rounded-xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--active)_12%,var(--surface))] text-[var(--active)]">
             <Network size={22} strokeWidth={1.8} />
-            <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-[#050a14] bg-emerald-400" />
+            <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full border-2 border-[var(--surface)] bg-emerald-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-[19px] font-bold leading-none tracking-[0.1em] text-slate-50">
+              <h1 className="font-display text-[20px] font-bold leading-none tracking-[0.06em] text-slate-50">
                 NET<span className="text-cyan-300">GUARD</span>
               </h1>
               <span className="rounded border border-white/10 bg-white/[0.03] px-1.5 py-0.5 font-mono text-[8px] text-slate-500">
@@ -136,6 +155,23 @@ export function Header() {
         )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            className="grid size-9 place-items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus)]"
+          >
+            <motion.span
+              key={theme}
+              initial={reducedMotion ? false : { opacity: 0, rotate: -35, scale: 0.75 }}
+              animate={{ opacity: 1, rotate: 0, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              className="grid place-items-center"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </motion.span>
+          </button>
           {health && (
             <div className={cn('flex items-center gap-2 rounded-full border px-3 py-1.5', health.text)}>
               <LiveDot tone={health.tone} />

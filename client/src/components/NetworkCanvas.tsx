@@ -113,6 +113,7 @@ export function NetworkCanvas({
   /* ---------------- packet animation ---------------- */
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
+  const lastPaintRef = useRef(0);
   const onHopRef = useRef(packet?.onHop);
   onHopRef.current = packet?.onHop;
   const onCompleteRef = useRef(packet?.onComplete);
@@ -122,6 +123,7 @@ export function NetworkCanvas({
 
   useEffect(() => {
     progressRef.current = 0;
+    lastPaintRef.current = 0;
     completedRef.current = false;
     setProgress(0);
     if (path.length > 0) onHopRef.current?.(0, path[0]);
@@ -138,7 +140,10 @@ export function NetworkCanvas({
       last = now;
       const next = Math.min(maxProgress, progressRef.current + delta * 1.1 * Math.max(packet.speed, 0.1));
       progressRef.current = next;
-      setProgress(next);
+      if (now - lastPaintRef.current >= 1000 / 30 || next >= maxProgress) {
+        lastPaintRef.current = now;
+        setProgress(next);
+      }
       const hop = Math.min(Math.floor(next), pathPoints.length - 1);
       if (hop !== lastHop) {
         lastHop = hop;
@@ -173,7 +178,7 @@ export function NetworkCanvas({
   const critical = highlight?.articulationPoints ?? new Set<string>();
   const bridges = highlight?.bridges ?? new Set<string>();
   const componentMap = highlight?.componentMap;
-  const componentColors = highlight?.componentColors ?? ['#22d3ee'];
+  const componentColors = highlight?.componentColors ?? ['var(--active)'];
 
   const focusPoint = trace?.focusEdge
     ? { a: layout.get(trace.focusEdge.u), b: layout.get(trace.focusEdge.v) }
@@ -214,12 +219,12 @@ export function NetworkCanvas({
             <feGaussianBlur stdDeviation="7" />
           </filter>
           <radialGradient id={`${uid}-aura`}>
-            <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--active)" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="var(--active)" stopOpacity="0" />
           </radialGradient>
           <linearGradient id={`${uid}-path`} x1="0" x2="1">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#a5f3fc" />
+            <stop offset="0%" stopColor="var(--active)" />
+            <stop offset="100%" stopColor="var(--focus)" />
           </linearGradient>
         </defs>
 
@@ -264,7 +269,7 @@ export function NetworkCanvas({
               y1={focusPoint.a.y}
               x2={focusPoint.b.x}
               y2={focusPoint.b.y}
-              stroke="#fbbf24"
+              stroke="var(--critical)"
               strokeWidth={5}
               opacity={0.22}
               strokeLinecap="round"
@@ -274,7 +279,7 @@ export function NetworkCanvas({
               y1={focusPoint.a.y}
               x2={focusPoint.b.x}
               y2={focusPoint.b.y}
-              stroke="#fde68a"
+              stroke="var(--critical)"
               strokeWidth={2}
               strokeDasharray="4 4"
               strokeLinecap="round"
@@ -328,7 +333,7 @@ export function NetworkCanvas({
               cy={brokenPoint.y}
               r={48}
               fill="none"
-              stroke="#fb7185"
+              stroke="var(--failed)"
               strokeWidth={2}
               opacity={0.65}
               className="signal-ripple"
@@ -338,7 +343,7 @@ export function NetworkCanvas({
               cy={brokenPoint.y}
               r={48}
               fill="none"
-              stroke="#f43f5e"
+              stroke="var(--failed)"
               strokeWidth={1.4}
               className="signal-ripple-delayed"
             />
@@ -348,9 +353,9 @@ export function NetworkCanvas({
         {/* Static packet marker, synchronised with BFS trace steps. */}
         {packetMarker && (
           <g transform={`translate(${packetMarker.x + 50},${packetMarker.y - 44})`} pointerEvents="none">
-            <circle r={20} fill="#22d3ee" opacity={0.14} />
-            <circle r={8} fill="#22d3ee" opacity={0.92} filter={`url(#${uid}-packet)`} />
-            <circle r={3} fill="#ecfeff" stroke="#22d3ee" strokeWidth={1.6} className="packet-core" />
+            <circle r={20} fill="var(--active)" opacity={0.14} />
+            <circle r={8} fill="var(--active)" opacity={0.92} filter={`url(#${uid}-packet)`} />
+            <circle r={3} fill="var(--text-primary)" stroke="var(--active)" strokeWidth={1.6} className="packet-core" />
           </g>
         )}
 
@@ -362,7 +367,7 @@ export function NetworkCanvas({
               cx={packetPosition.x}
               cy={packetPosition.y}
               r={13}
-              fill="#22d3ee"
+              fill="var(--active)"
               opacity={0.85}
               filter={`url(#${uid}-packet)`}
             />
@@ -371,7 +376,7 @@ export function NetworkCanvas({
               cy={packetPosition.y}
               r={12}
               fill="none"
-              stroke="#a5f3fc"
+              stroke="var(--focus)"
               strokeWidth={1}
               strokeDasharray="2 5"
               opacity={0.8}
@@ -381,15 +386,15 @@ export function NetworkCanvas({
               cx={packetPosition.x}
               cy={packetPosition.y}
               r={5}
-              fill="#ecfeff"
-              stroke="#22d3ee"
+              fill="var(--text-primary)"
+              stroke="var(--active)"
               strokeWidth={2}
               className="packet-core"
             />
             {!compact && (
               <g transform={`translate(${packetPosition.x},${packetPosition.y + 26})`}>
-                <rect x={-19} y={-8} width={38} height={16} rx={8} fill="#04111c" opacity={0.92} stroke="#164e63" strokeWidth={1} />
-                <text textAnchor="middle" y={3} fill="#a5f3fc" fontSize={8.5} fontFamily="'JetBrains Mono', monospace">
+                <rect x={-19} y={-8} width={38} height={16} rx={8} fill="var(--surface)" opacity={0.92} stroke="var(--border)" strokeWidth={1} />
+                <text textAnchor="middle" y={3} fill="var(--active)" fontSize={8.5} fontFamily="'JetBrains Mono', monospace">
                   HOP {Math.min(Math.floor(progress), maxProgress)}/{maxProgress}
                 </text>
               </g>
@@ -471,20 +476,20 @@ function GraphLink({
   const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   const traversable = active && uActive && vActive;
 
-  let stroke = '#3b5169';
+  let stroke = 'var(--border-strong)';
   let width = 2;
   let opacity = traversable ? 0.9 : 0.62;
   if (componentColor) stroke = componentColor;
   if (isBridge) {
-    stroke = '#fb7185';
+    stroke = 'var(--critical)';
     width = 2.2;
   }
   if (isPath) {
-    stroke = '#22d3ee';
+    stroke = 'var(--active)';
     width = 2.6;
   }
   if (!active) {
-    stroke = '#f43f5e';
+    stroke = 'var(--failed)';
     width = 1.7;
     opacity = 0.55;
   }
@@ -509,7 +514,7 @@ function GraphLink({
         {isBridge ? ' · critical link (bridge)' : ''}
       </title>
       {selected && (
-        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#67e8f9" strokeWidth={8} opacity={0.16} strokeLinecap="round" />
+        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--active)" strokeWidth={8} opacity={0.16} strokeLinecap="round" />
       )}
       {isBridge && (
         <line
@@ -517,7 +522,7 @@ function GraphLink({
           y1={a.y}
           x2={b.x}
           y2={b.y}
-          stroke="#fb7185"
+          stroke="var(--critical)"
           strokeWidth={7}
           opacity={0.16}
           strokeLinecap="round"
@@ -534,23 +539,8 @@ function GraphLink({
         strokeLinecap="round"
         strokeDasharray={active ? undefined : '5 5'}
         opacity={opacity}
-        filter={isPath || isBridge ? softFilter : undefined}
+        filter={isPath ? softFilter : undefined}
       />
-
-      {traversable && !isPath && (
-        <line
-          x1={a.x}
-          y1={a.y}
-          x2={b.x}
-          y2={b.y}
-          stroke={componentColor ?? '#22d3ee'}
-          strokeWidth={1.25}
-          strokeDasharray="1.5 13"
-          opacity={componentColor ? 0.6 : 0.4}
-          strokeLinecap="round"
-          className="link-flow"
-        />
-      )}
 
       {isPath && (
         <>
@@ -559,7 +549,7 @@ function GraphLink({
             y1={a.y}
             x2={b.x}
             y2={b.y}
-            stroke="#67e8f9"
+            stroke="var(--focus)"
             strokeWidth={2.2}
             opacity={0.9}
             filter={softFilter}
@@ -569,7 +559,7 @@ function GraphLink({
             y1={a.y}
             x2={b.x}
             y2={b.y}
-            stroke="#ecfeff"
+            stroke="var(--text-primary)"
             strokeWidth={1.2}
             strokeDasharray="3 10"
             opacity={0.8}
@@ -581,8 +571,8 @@ function GraphLink({
 
       {!active && (
         <g transform={`translate(${mid.x},${mid.y})`} pointerEvents="none">
-          <circle r={8} fill="#170a10" stroke="#f43f5e" strokeWidth={1} opacity={0.95} />
-          <path d="M -3 -3 L 3 3 M 3 -3 L -3 3" stroke="#fb7185" strokeWidth={1.4} strokeLinecap="round" />
+          <circle r={8} fill="var(--surface)" stroke="var(--failed)" strokeWidth={1} opacity={0.95} />
+          <path d="M -3 -3 L 3 3 M 3 -3 L -3 3" stroke="var(--failed)" strokeWidth={1.4} strokeLinecap="round" />
         </g>
       )}
 
@@ -639,17 +629,17 @@ function GraphDevice({
   const Icon = DEVICE_ICONS[meta.kind];
   const traceState = traceNode?.state;
   const stroke = !active
-    ? '#f43f5e'
+    ? 'var(--failed)'
     : traceState === 'current'
-      ? '#22d3ee'
+      ? 'var(--active)'
       : traceState === 'frontier'
-        ? '#fbbf24'
+        ? 'var(--critical)'
         : selected
-          ? '#22d3ee'
+        ? 'var(--active)'
           : onPath
-            ? '#67e8f9'
-            : critical
-              ? '#fb7185'
+          ? 'var(--focus)'
+    : critical
+              ? 'var(--critical)'
               : `${meta.color}66`;
 
   return (
@@ -676,8 +666,8 @@ function GraphDevice({
 
       {/* Hover degree chip — the current number of active neighbours. */}
       <g transform="translate(44,-52)" pointerEvents="none" className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus:opacity-100">
-        <rect x={-22} y={-8} width={44} height={15} rx={7.5} fill="#04111c" stroke="#22d3ee55" strokeWidth={1} />
-        <text textAnchor="middle" y={3} fill="#67e8f9" fontSize={7} fontFamily="'JetBrains Mono', monospace">
+        <rect x={-22} y={-8} width={44} height={15} rx={7.5} fill="var(--surface)" stroke="var(--border-strong)" strokeWidth={1} />
+        <text textAnchor="middle" y={3} fill="var(--active)" fontSize={7} fontFamily="'JetBrains Mono', monospace">
           deg {degree}
         </text>
       </g>
@@ -691,7 +681,7 @@ function GraphDevice({
           height={98}
           rx={19}
           fill="none"
-          stroke="#22d3ee"
+          stroke="var(--active)"
           strokeWidth={1.8}
           className="trace-pulse"
         />
@@ -704,14 +694,14 @@ function GraphDevice({
           height={98}
           rx={19}
           fill="none"
-          stroke="#fbbf24"
+          stroke="var(--critical)"
           strokeWidth={1.3}
           strokeDasharray="4 4"
           opacity={0.85}
         />
       )}
       {traceState === 'visited' && (
-        <rect x={-69} y={-47} width={138} height={94} rx={17} fill="#34d399" opacity={0.05} />
+        <rect x={-69} y={-47} width={138} height={94} rx={17} fill="var(--healthy)" opacity={0.06} />
       )}
 
       {critical && (
@@ -722,7 +712,7 @@ function GraphDevice({
           height={106}
           rx={23}
           fill="none"
-          stroke="#fb7185"
+          stroke="var(--critical)"
           strokeWidth={1.6}
           className="critical-halo"
         />
@@ -736,7 +726,7 @@ function GraphDevice({
           height={100}
           rx={20}
           fill="none"
-          stroke="#67e8f9"
+          stroke="var(--active)"
           strokeWidth={1.4}
           strokeDasharray="4 4"
           opacity={0.9}
@@ -775,7 +765,7 @@ function GraphDevice({
         width={132}
         height={88}
         rx={16}
-        fill={active ? '#0a1626' : '#140d16'}
+        fill={active ? 'var(--graph-surface)' : 'color-mix(in srgb, var(--failed) 12%, var(--graph-surface))'}
         stroke={stroke}
         strokeWidth={selected ? 1.6 : 1.1}
         strokeDasharray={active ? undefined : '5 4'}
@@ -791,7 +781,7 @@ function GraphDevice({
         height={96}
         rx={19}
         fill="none"
-        stroke="#22d3ee"
+        stroke="var(--focus)"
         strokeWidth={1.4}
         pointerEvents="none"
       />
@@ -809,20 +799,20 @@ function GraphDevice({
       />
 
       {/* status LED */}
-      <circle cx={53} cy={-33} r={3.4} fill={active ? '#34d399' : '#fb7185'} />
-      <circle cx={53} cy={-33} r={6.5} fill={active ? '#34d399' : '#fb7185'} opacity={0.14} />
+      <circle cx={53} cy={-33} r={3.4} fill={active ? 'var(--healthy)' : 'var(--failed)'} />
+      <circle cx={53} cy={-33} r={6.5} fill={active ? 'var(--healthy)' : 'var(--failed)'} opacity={0.14} />
 
       {critical && (
         <g transform="translate(-53,-33)">
-          <circle r={7.5} fill="#fb7185" opacity={0.18} />
-          <TriangleAlert x={-5} y={-5} width={10} height={10} color="#fb7185" strokeWidth={2} />
+          <circle r={7.5} fill="var(--critical)" opacity={0.16} />
+          <TriangleAlert x={-5} y={-5} width={10} height={10} color="var(--critical)" strokeWidth={2} />
         </g>
       )}
 
       <text
         textAnchor="middle"
         y={10}
-        fill={active ? '#e2e8f0' : '#94a3b8'}
+        fill={active ? 'var(--text-primary)' : 'var(--text-muted)'}
         fontSize={10.6}
         fontFamily="'JetBrains Mono', monospace"
         letterSpacing="-0.2"
@@ -833,7 +823,7 @@ function GraphDevice({
       <text
         textAnchor="middle"
         y={24}
-        fill={active ? '#64748b' : '#7f1d1d'}
+        fill={active ? 'var(--text-muted)' : 'var(--failed)'}
         fontSize={7}
         fontFamily="'JetBrains Mono', monospace"
         letterSpacing="1.3"
@@ -863,7 +853,7 @@ function GraphDevice({
 
       {!active && (
         <g transform="translate(0,53)" pointerEvents="none">
-          <rect x={-23} y={-8} width={46} height={16} rx={8} fill="#2a0a13" stroke="#f43f5e" strokeOpacity={0.55} strokeWidth={1} />
+          <rect x={-23} y={-8} width={46} height={16} rx={8} fill="var(--surface)" stroke="var(--failed)" strokeOpacity={0.55} strokeWidth={1} />
           <text
             textAnchor="middle"
             y={3}

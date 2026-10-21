@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark" style="color-scheme:dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -8,7 +8,15 @@
       name="description"
       content="NetGuard – an interactive graph-based network reliability simulator. Explore BFS, bridges, articulation points and connected components on a live network topology."
     />
-    <meta name="theme-color" content="#060b14" />
+    <meta name="theme-color" content="#0B1120" />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem('netguard-theme');
+        const theme = savedTheme === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

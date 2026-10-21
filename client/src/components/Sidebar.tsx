@@ -103,7 +103,7 @@ export function AdjacencyPanel({ graph }: { graph: GraphSnapshot }) {
                     type="button"
                     onClick={() => select({ kind: 'device', name: entry.name })}
                     className={cn(
-                      'block w-full border-b border-white/[0.035] px-3.5 py-1.5 text-left transition-colors last:border-b-0',
+                    'block w-full border-b border-white/[0.035] px-3.5 py-2 text-left transition-colors duration-150 last:border-b-0',
                       isSelected ? 'bg-cyan-400/[0.055]' : 'hover:bg-white/[0.025]',
                       rowChange === 'down' && 'adj-row-down',
                       rowChange === 'restored' && 'adj-row-restored',
@@ -119,18 +119,18 @@ export function AdjacencyPanel({ graph }: { graph: GraphSnapshot }) {
                       />
                       <span
                         className={cn(
-                          'truncate font-mono text-[10.5px]',
+                        'truncate font-mono text-[12px]',
                           entry.active ? 'text-slate-200' : 'text-rose-300/80 line-through decoration-rose-400/40',
                         )}
                       >
                         {entry.name}
                       </span>
-                      <span className="ml-auto shrink-0 font-mono text-[8px] uppercase tracking-wide text-slate-600">
+                      <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wide text-slate-600">
                         {entry.active ? `${entry.activeNeighborCount} up` : 'down'}
                       </span>
                     </div>
 
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1 pl-8">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-8">
                       <span className="font-mono text-[9.5px] text-slate-600">→</span>
                       {entry.neighbors.length === 0 && (
                         <span className="font-mono text-[9px] italic text-slate-600">EMPTY (isolated node)</span>
@@ -144,7 +144,7 @@ export function AdjacencyPanel({ graph }: { graph: GraphSnapshot }) {
                           <span
                             key={neighbor.name}
                             className={cn(
-                              'inline-flex items-center gap-1 rounded border px-1.5 font-mono text-[8.5px] leading-[15px]',
+                              'inline-flex items-center gap-1 rounded border px-1.5 font-mono text-[10px] leading-5',
                               neighbor.active
                                 ? 'border-cyan-400/15 bg-cyan-400/[0.05] text-cyan-200/80'
                                 : neighbor.linkActive
